@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+    <title>S.M.A.R.T. - Student Tracker</title>
+    
+    <!-- PWA / Mobile Web App Meta Tags -->
+    <meta name="theme-color" content="#0056b3">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="S.M.A.R.T.">
+
+    <script src="https://unpkg.com/dexie@latest/dist/dexie.js"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
+    <style>
+        body { font-family: -apple-system, sans-serif; margin: 10px; background: #f0f2f5; color: #333; touch-action: manipulation; }
+        .header { text-align: center; margin-bottom: 15px; }
+        .header h1 { font-size: 1.4em; color: #0056b3; margin: 0; letter-spacing: 1px; }
+        .header p { font-size: 0.85em; color: #666; margin: 2px 0 10px 0; }
+        
+        .card { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 15px; }
+        h3 { margin-top: 0; font-size: 1.1em; border-bottom: 1px solid #eee; padding-bottom: 8px; color: #0056b3; text-align: center; }
+        button { width: 100%; border: none; padding: 12px; border-radius: 8px; font-weight: bold; margin: 5px 0; font-size: 14px; cursor: pointer; transition: opacity 0.2s; }
+        button:active { opacity: 0.7; }
+        button:disabled { background: #ccc !important; cursor: not-allowed; opacity: 0.6; }
+        
+        .btn-primary { background: #007bff; color: white; }
+        .btn-secondary { background: #6c757d; color: white; }
+        .btn-success { background: #28a745; color: white; }
+        .btn-danger { background: #dc3545; color: white; }
+        .btn-sync { background: #6f42c1; color: white; } 
+        
+        #last-scanned-bar { 
+            background: #e7f3ff; color: #007bff; padding: 10px; border-radius: 8px; 
+            text-align: center; font-size: 13px; font-weight: bold; margin-bottom: 10px; 
+            display: none; border: 1px solid #b3d7ff;
+        }
+
+        #quick-toast { 
+            position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%); 
+            background: rgba(0,0,0,0.85); color: white; padding: 16px 30px; 
+            border-radius: 50px; font-size: 16px; font-weight: bold;
+            display: none; z-index: 9999; box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            text-align: center; min-width: 200px;
+        }
+
+        #reader { width: 100%; max-width: 350px; aspect-ratio: 1/1; border-radius: 12px; background: #000; margin: 0 auto; overflow: hidden; }
+        #reader #reader__scan_region { border: none !important; }
+        #reader #reader__scan_region img { display: none !important; }
+        #reader video { object-fit: cover !important; width: 100% !important; height: 100% !important; }
+
+        .result-box { background: #fff; padding: 15px; border-radius: 10px; margin-top: 10px; border: 2px solid #007bff; }
+        #status { font-weight: bold; margin-bottom: 10px; padding: 10px; border-radius: 8px; text-align: center; font-size: 12px; }
+        
+        .search-row { display: flex; gap: 5px; margin-bottom: 10px; justify-content: center; }
+        .search-row input { flex: 1; max-width: 250px; padding: 12px; border-radius: 8px; border: 1px solid #ccc; font-size: 16px; text-align: center; }
+        
+        #searchList { max-height: 220px; overflow-y: auto; background: #f8f9fa; border-radius: 8px; margin-bottom: 10px; display: none; border: 1px solid #ddd; }
+        .search-item { padding: 12px; border-bottom: 1px solid #eee; display: flex; flex-direction: column; align-items: center; text-align: center; cursor: pointer; }
+
+        table { width: 100%; border-collapse: collapse; font-size: 11px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+
+        #toast-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); display: none; align-items: center; justify-content: center; z-index: 10000; }
+        .toast-box { background: white; padding: 20px; border-radius: 15px; width: 80%; max-width: 300px; text-align: center; }
+
+        #installBanner {
+            display: none; background: #007bff; color: white; padding: 10px; 
+            border-radius: 8px; margin-bottom: 15px; text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="installBanner">
+        <span>Install S.M.A.R.T. App on your device!</span>
+        <button id="installBtn" class="btn-success" style="width: auto; padding: 6px 15px; margin-left: 10px; display: inline-block;">Install</button>
+    </div>
+
+    <div class="header">
+        <h1>S.M.A.R.T.</h1>
+        <p>Student Monitoring & Accountability Record Tracker</p>
+    </div>
+
+    <div id="status">Loading...</div>
+
+    <div id="toast-overlay">
+        <div class="toast-box">
+            <p id="toast-msg"></p>
+            <button class="btn-primary" style="width:auto; padding: 10px 40px;" onclick="hideNotify()">OK</button>
+        </div>
+    </div>
+
+    <div id="quick-toast"></div>
+
+    <div class="card">
+        <h3>Manual Search</h3>
+        <div class="search-row">
+            <input type="text" id="nameInput" placeholder="Student name..." onkeyup="if(event.key === 'Enter') performSearch()">
+            <button class="btn-primary" style="width:auto;" onclick="performSearch()">🔍</button>
+        </div>
+        <div id="searchList"></div>
+    </div>
+
+    <div class="card" style="text-align: center;">
+        <h3>QR Scanner</h3>
+        <div id="last-scanned-bar"></div>
+        <button id="startBtn" class="btn-primary" onclick="initScanner()">Open Camera</button>
+        <div id="reader"></div>
+
+        <div id="scanResult" style="display:none; text-align: left;" class="result-box">
+            <p style="margin:0; color:#666; font-size:11px;">STUDENT IDENTIFIED:</p>
+            <p style="font-size: 18px; font-weight: bold; margin: 5px 0;"><span id="nameText"></span></p>
+            <p style="margin: 0 0 15px 0; font-size:14px; color: #444;"><span id="infoText"></span></p>
+            
+            <label style="font-size: 12px; font-weight: bold;">Violation:</label>
+            <select id="violationType" style="width:100%; padding:12px; margin:10px 0; border-radius:8px; font-size: 16px;">
+                <option value="Improper Haircut">Improper Haircut</option>
+                <option value="Improper Uniform">Improper Uniform</option>
+                <option value="No ID">No ID Card</option>
+                <option value="Late">Tardiness</option>
+                <option value="Make Up">Excessive Make Up</option>
+                <option value="Others">Others</option>
+            </select>
+            <button class="btn-success" onclick="saveRecord()">Confirm & Save</button>
+            <button class="btn-secondary" onclick="cancelScan()">Cancel</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>Recent History</h3>
+        <div style="overflow-x: auto;">
+            <table>
+                <thead><tr><th>Name</th><th>Violation</th><th>Time</th><th>Sync</th></tr></thead>
+                <tbody id="historyBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card" style="text-align: center;">
+        <h3>System Tools</h3>
+        <button id="syncBtn" class="btn-sync" onclick="syncToSheets()">☁️ Sync to Google Sheets</button>
+        <button class="btn-success" onclick="exportData()">Extract Excel Report</button>
+        <hr>
+        <input type="file" id="csvFile" accept=".csv" style="font-size: 11px; margin-bottom:10px;">
+        <button class="btn-secondary" onclick="uploadCSV()">Update Roster</button>
+        <button class="btn-danger" style="margin-top:20px; opacity:0.5" onclick="clearLogs()">Clear All Records</button>
+    </div>
+
+    <script>
+        // --- OFFLINE-READY PWA REGISTRATION ---
+        (function setupPWA() {
+            const manifestData = {
+                name: "S.M.A.R.T. Student Tracker",
+                short_name: "SMART Tracker",
+                start_url: "./",
+                display: "standalone",
+                background_color: "#f0f2f5",
+                theme_color: "#0056b3",
+                icons: [{
+                    src: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230056b3'/><text x='50%' y='60%' font-size='50' font-weight='bold' fill='white' text-anchor='middle'>S</text></svg>",
+                    sizes: "192x192 512x512",
+                    type: "image/svg+xml"
+                }]
+            };
+            const manifestBlob = new Blob([JSON.stringify(manifestData)], { type: 'application/json' });
+            const link = document.createElement('link');
+            link.rel = 'manifest';
+            link.href = URL.createObjectURL(manifestBlob);
+            document.head.appendChild(link);
+
+            if ('serviceWorker' in navigator) {
+                const swCode = `
+                    self.addEventListener('install', (e) => self.skipWaiting());
+                    self.addEventListener('activate', (e) => e.waitUntil(clients.claim()));
+                    self.addEventListener('fetch', (e) => {
+                        e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
+                    });
+                `;
+                const swDataUrl = 'data:application/javascript;charset=utf-8,' + encodeURIComponent(swCode);
+                navigator.serviceWorker.register(swDataUrl).catch(() => {});
+            }
+
+            let deferredPrompt;
+            window.addEventListener('beforeinstallprompt', (e) => {
+                e.preventDefault();
+                deferredPrompt = e;
+                const installBanner = document.getElementById('installBanner');
+                if (installBanner) installBanner.style.display = 'block';
+
+                const installBtn = document.getElementById('installBtn');
+                if (installBtn) {
+                    installBtn.addEventListener('click', () => {
+                        installBanner.style.display = 'none';
+                        deferredPrompt.prompt();
+                        deferredPrompt.userChoice.then(() => { deferredPrompt = null; });
+                    });
+                }
+            });
+        })();
+
+        // --- MAIN APP LOGIC ---
+        const SYNC_URL = "https://script.google.com/macros/s/AKfycbyvBDzkliD44BPjLtgCLlX3jKrI1VlOymfU7l80asrvIWU-Z7pUP5P5ztdGOL2-OUfA6w/exec";
+        
+        const db = new Dexie("StudentTrackerDB");
+        db.version(2).stores({
+            students: "LRN, Name, Grade, Section",
+            logs: "++id, LRN, Name, Grade, Section, violation, timestamp, synced"
+        });
+
+        let scanner = null;
+        let activeStudent = null;
+        let audioCtx = null;
+        let isScannerActive = false;
+
+        function showNotify(msg) {
+            document.getElementById('toast-msg').innerText = msg;
+            document.getElementById('toast-overlay').style.display = "flex";
+        }
+        function hideNotify() { document.getElementById('toast-overlay').style.display = "none"; }
+        function quickShow(msg) {
+            const el = document.getElementById('quick-toast');
+            el.innerText = msg;
+            el.style.display = "block";
+            setTimeout(() => { el.style.display = "none"; }, 2500);
+        }
+
+        async function playSound(mode) {
+            try {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioCtx.state === 'suspended') await audioCtx.resume();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                if (mode === 'scan') {
+                    osc.frequency.setValueAtTime(1200, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+                    osc.start(); osc.stop(audioCtx.currentTime + 0.2);
+                } else if (mode === 'save') {
+                    osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(1000, audioCtx.currentTime + 0.1);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                    osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+                } else if (mode === 'error') {
+                    osc.type = "sawtooth";
+                    osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+                    osc.start(); osc.stop(audioCtx.currentTime + 0.4);
+                }
+            } catch(e) {}
+        }
+
+        document.addEventListener("DOMContentLoaded", refreshUI);
+
+        async function refreshUI() {
+            const studentCount = await db.students.count();
+            const logCount = await db.logs.count();
+            const unsyncedCount = await db.logs.where('synced').equals(0).count();
+            
+            document.getElementById('status').innerText = studentCount > 0 
+                ? `ROSTER: ${studentCount} | LOGS: ${logCount} (${unsyncedCount} Pending)` 
+                : `⚠️ NO ROSTER DATA`;
+            
+            const lastLogs = await db.logs.reverse().limit(5).toArray();
+            if(lastLogs.length > 0) {
+                const bar = document.getElementById('last-scanned-bar');
+                bar.innerText = `LAST LOGGED: ${lastLogs[0].Name}`;
+                bar.style.display = 'block';
+            }
+            document.getElementById('historyBody').innerHTML = lastLogs.map(log => `
+                <tr>
+                    <td>${log.Name}</td>
+                    <td>${log.violation}</td>
+                    <td>${new Date(log.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</td>
+                    <td>${log.synced ? '✅' : '⏳'}</td>
+                </tr>
+            `).join('');
+        }
+
+        async function performSearch() {
+            const query = document.getElementById('nameInput').value.trim().toLowerCase();
+            const listDiv = document.getElementById('searchList');
+            listDiv.innerHTML = "";
+            if (query.length < 2) { quickShow("Enter at least 2 characters"); return; }
+            const matches = await db.students.filter(s => s.Name.toLowerCase().includes(query)).limit(20).toArray();
+            if (matches.length > 0) {
+                listDiv.style.display = 'block';
+                listDiv.innerHTML = matches.map(s => `
+                    <div class="search-item" onclick="selectStudent('${s.LRN}')">
+                        <strong>${s.Name}</strong><small>${s.Grade} - ${s.Section}</small>
+                    </div>`).join('') + `<button class="btn-danger" style="padding:5px; font-size:10px;" onclick="closeSearchList()">Close</button>`;
+            } else { quickShow("No matches found"); }
+        }
+
+        function closeSearchList() { document.getElementById('searchList').style.display = 'none'; }
+
+        async function selectStudent(lrn) {
+            closeSearchList();
+            const student = await db.students.get(lrn);
+            if (student) {
+                playSound('scan');
+                activeStudent = student;
+                document.getElementById('nameText').innerText = student.Name;
+                document.getElementById('infoText').innerText = `Grade ${student.Grade} — ${student.Section}`;
+                document.getElementById('scanResult').style.display = 'block';
+                if(scanner && scanner.getState() === Html5QrcodeScannerState.SCANNING) {
+                    try { scanner.pause(true); } catch(e){}
+                }
+            }
+        }
+
+        // --- ROBUST CAMERA INIT & OFFLINE HANDLING ---
+        async function initScanner() {
+            isScannerActive = true;
+            document.getElementById('startBtn').style.display = 'none';
+
+            // Fully clear existing scanner instance if stalled
+            if (scanner) {
+                try {
+                    await stopScanner();
+                    await scanner.clear();
+                } catch (e) {}
+                scanner = null;
+            }
+
+            scanner = new Html5Qrcode("reader");
+            const config = { fps: 15, qrbox: null };
+            
+            try {
+                await scanner.start(
+                    { facingMode: "environment" }, 
+                    config, 
+                    (text) => selectStudent(text.trim())
+                );
+            } catch (err) {
+                showNotify("Camera Error: Please check camera permissions."); 
+                document.getElementById('startBtn').style.display = 'block'; 
+                isScannerActive = false;
+            }
+        }
+
+        async function stopScanner() {
+            if (scanner) {
+                const state = scanner.getState();
+                if (state === Html5QrcodeScannerState.SCANNING || state === Html5QrcodeScannerState.PAUSED) {
+                    try {
+                        await scanner.stop();
+                    } catch (e) {}
+                }
+            }
+        }
+
+        // Handles tab backgrounding & reopening without requiring network reloads
+        document.addEventListener('visibilitychange', async () => {
+            if (document.hidden) {
+                if (isScannerActive) {
+                    await stopScanner();
+                }
+            } else {
+                if (isScannerActive && document.getElementById('scanResult').style.display !== 'block') {
+                    // Small delay ensures MediaDevices hardware releases properly offline
+                    setTimeout(initScanner, 300);
+                }
+            }
+        });
+
+        function cancelScan() {
+            document.getElementById('scanResult').style.display = 'none';
+            if(scanner && scanner.getState() === Html5QrcodeScannerState.PAUSED) {
+                try { scanner.resume(); } catch(e) { initScanner(); }
+            }
+        }
+
+        async function saveRecord() {
+            if(!activeStudent) return;
+            const violation = document.getElementById('violationType').value;
+            const now = Date.now();
+            
+            const dup = await db.logs.where('LRN').equals(activeStudent.LRN).and(l => l.violation === violation && (now - l.timestamp) < 30000).first();
+            if (dup) { playSound('error'); quickShow("Already recorded!"); return; }
+
+            await db.logs.add({ ...activeStudent, violation: violation, timestamp: now, synced: 0 });
+            playSound('save');
+            quickShow("Saved ✅");
+            document.getElementById('scanResult').style.display = 'none';
+            await refreshUI();
+            if(scanner && scanner.getState() === Html5QrcodeScannerState.PAUSED) {
+                try { scanner.resume(); } catch(e) { initScanner(); }
+            }
+        }
+
+        async function syncToSheets() {
+            if (!navigator.onLine) { showNotify("No Internet Connection"); return; }
+            
+            const btn = document.getElementById('syncBtn');
+            const unsynced = await db.logs.where('synced').equals(0).toArray();
+            if (unsynced.length === 0) { quickShow("Nothing to sync"); return; }
+
+            btn.disabled = true;
+            btn.innerText = "Syncing... ⏳";
+
+            try {
+                await fetch(SYNC_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    cache: 'no-cache',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(unsynced)
+                });
+                
+                await db.logs.where('synced').equals(0).modify({ synced: 1 });
+                showNotify(`Success! ${unsynced.length} records synced.`);
+                await refreshUI();
+            } catch (err) {
+                showNotify("Sync Failed. Try again.");
+            } finally {
+                setTimeout(() => {
+                    btn.disabled = false;
+                    btn.innerText = "☁️ Sync to Google Sheets";
+                }, 2000);
+            }
+        }
+
+        async function uploadCSV() {
+            const file = document.getElementById('csvFile').files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const rows = e.target.result.split("\n").slice(1);
+                const data = rows.map(r => {
+                    const c = r.split(",");
+                    return c.length >= 4 ? { LRN: c[0].trim(), Name: c[1].trim(), Grade: c[2].trim(), Section: c[3].trim() } : null;
+                }).filter(Boolean);
+                await db.students.clear();
+                await db.students.bulkPut(data);
+                showNotify(`Imported ${data.length} students.`);
+                refreshUI();
+            };
+            reader.readAsText(file);
+        }
+
+        async function exportData() {
+            const logs = await db.logs.toArray();
+            const ws = XLSX.utils.json_to_sheet(logs.map(l => ({
+                LRN: l.LRN, Name: l.Name, Violation: l.violation, Date: new Date(l.timestamp).toLocaleString()
+            })));
+            const wb = XLSX.utils.book_new();
+            XLSX.writeFile(wb, "SMART_Report.xlsx");
+        }
+
+        async function clearLogs() { if (confirm("Clear all?")) { await db.logs.clear(); refreshUI(); } }
+    </script>
+</body>
+</html>
