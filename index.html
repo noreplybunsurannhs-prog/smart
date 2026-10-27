@@ -6,7 +6,7 @@
     <title>S.M.A.R.T. - Student Tracker</title>
     
     <!-- PWA / Mobile Web App Meta Tags -->
-    <meta name="theme-color" content="#0056b3">
+    <meta name="theme-color" content="#0056b3" id="metaThemeColor">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="S.M.A.R.T.">
@@ -15,35 +15,112 @@
     <script src="https://unpkg.com/html5-qrcode"></script>
     <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
     <style>
-        body { font-family: -apple-system, sans-serif; margin: 10px; background: #f0f2f5; color: #333; touch-action: manipulation; }
-        .header { text-align: center; margin-bottom: 15px; }
-        .header h1 { font-size: 1.4em; color: #0056b3; margin: 0; letter-spacing: 1px; }
-        .header p { font-size: 0.85em; color: #666; margin: 2px 0 10px 0; }
+        :root {
+            --bg-color: #f0f2f5;
+            --text-color: #333333;
+            --card-bg: #ffffff;
+            --header-title: #0056b3;
+            --subtext-color: #666666;
+            --border-color: #eeeeee;
+            --input-border: #cccccd;
+            --input-bg: #ffffff;
+            --table-header-bg: #f8f9fa;
+            --toast-bg: rgba(0,0,0,0.85);
+            --toast-text: #ffffff;
+            --status-bg: #ffffff;
+            --last-scanned-bg: #e7f3ff;
+            --last-scanned-border: #b3d7ff;
+            --last-scanned-text: #007bff;
+        }
+
+        body.dark-mode {
+            --bg-color: #121212;
+            --text-color: #e0e0e0;
+            --card-bg: #1e1e1e;
+            --header-title: #4da3ff;
+            --subtext-color: #aaa;
+            --border-color: #333333;
+            --input-border: #444444;
+            --input-bg: #2a2a2a;
+            --table-header-bg: #2d2d2d;
+            --toast-bg: rgba(255,255,255,0.9);
+            --toast-text: #121212;
+            --status-bg: #1e1e1e;
+            --last-scanned-bg: #1a2a3a;
+            --last-scanned-border: #2c4d75;
+            --last-scanned-text: #66b2ff;
+        }
+
+        body { 
+            font-family: -apple-system, sans-serif; 
+            margin: 10px; 
+            background: var(--bg-color); 
+            color: var(--text-color); 
+            touch-action: manipulation; 
+            transition: background 0.3s ease, color 0.3s ease;
+        }
+
+        .header { 
+            text-align: center; 
+            margin-bottom: 15px; 
+            position: relative;
+        }
+        .header h1 { font-size: 1.4em; color: var(--header-title); margin: 0; letter-spacing: 1px; }
+        .header p { font-size: 0.85em; color: var(--subtext-color); margin: 2px 0 10px 0; }
         
-        .card { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 15px; }
-        h3 { margin-top: 0; font-size: 1.1em; border-bottom: 1px solid #eee; padding-bottom: 8px; color: #0056b3; text-align: center; }
+        .theme-toggle-btn {
+            position: absolute;
+            top: 0;
+            right: 5px;
+            background: transparent;
+            border: none;
+            font-size: 1.3em;
+            cursor: pointer;
+            padding: 5px;
+            width: auto;
+        }
+
+        .card { 
+            background: var(--card-bg); 
+            padding: 15px; 
+            border-radius: 12px; 
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1); 
+            margin-bottom: 15px; 
+            transition: background 0.3s ease;
+        }
+        
+        h3 { margin-top: 0; font-size: 1.1em; border-bottom: 1px solid var(--border-color); padding-bottom: 8px; color: var(--header-title); text-align: center; }
+        
         button { width: 100%; border: none; padding: 12px; border-radius: 8px; font-weight: bold; margin: 5px 0; font-size: 14px; cursor: pointer; transition: opacity 0.2s; }
         button:active { opacity: 0.7; }
-        button:disabled { background: #ccc !important; cursor: not-allowed; opacity: 0.6; }
+        button:disabled { background: #ccc !important; color: #666 !important; cursor: not-allowed; opacity: 0.6; }
         
         .btn-primary { background: #007bff; color: white; }
         .btn-secondary { background: #6c757d; color: white; }
         .btn-success { background: #28a745; color: white; }
         .btn-danger { background: #dc3545; color: white; }
         .btn-sync { background: #6f42c1; color: white; } 
+        .btn-info { background: #17a2b8; color: white; }
         
         #last-scanned-bar { 
-            background: #e7f3ff; color: #007bff; padding: 10px; border-radius: 8px; 
-            text-align: center; font-size: 13px; font-weight: bold; margin-bottom: 10px; 
-            display: none; border: 1px solid #b3d7ff;
+            background: var(--last-scanned-bg); 
+            color: var(--last-scanned-text); 
+            padding: 10px; 
+            border-radius: 8px; 
+            text-align: center; 
+            font-size: 13px; 
+            font-weight: bold; 
+            margin-bottom: 10px; 
+            display: none; 
+            border: 1px solid var(--last-scanned-border);
         }
 
         #quick-toast { 
-            position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%); 
-            background: rgba(0,0,0,0.85); color: white; padding: 16px 30px; 
-            border-radius: 50px; font-size: 16px; font-weight: bold;
-            display: none; z-index: 9999; box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-            text-align: center; min-width: 200px;
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); 
+            background: var(--toast-bg); color: var(--toast-text); padding: 18px 30px; 
+            border-radius: 20px; font-size: 16px; font-weight: bold;
+            display: none; z-index: 99999; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            text-align: center; min-width: 220px; border: 1px solid var(--border-color);
         }
 
         #reader { width: 100%; max-width: 350px; aspect-ratio: 1/1; border-radius: 12px; background: #000; margin: 0 auto; overflow: hidden; }
@@ -51,45 +128,63 @@
         #reader #reader__scan_region img { display: none !important; }
         #reader video { object-fit: cover !important; width: 100% !important; height: 100% !important; }
 
-        .result-box { background: #fff; padding: 15px; border-radius: 10px; margin-top: 10px; border: 2px solid #007bff; }
-        #status { font-weight: bold; margin-bottom: 10px; padding: 10px; border-radius: 8px; text-align: center; font-size: 12px; }
+        .result-box { background: var(--card-bg); padding: 15px; border-radius: 10px; margin-top: 10px; border: 2px solid #007bff; }
+        #status { font-weight: bold; margin-bottom: 10px; padding: 10px; border-radius: 8px; text-align: center; font-size: 12px; background: var(--card-bg); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         
         .search-row { display: flex; gap: 5px; margin-bottom: 10px; justify-content: center; }
-        .search-row input { flex: 1; max-width: 250px; padding: 12px; border-radius: 8px; border: 1px solid #ccc; font-size: 16px; text-align: center; }
+        .search-row input { flex: 1; max-width: 250px; padding: 12px; border-radius: 8px; border: 1px solid var(--input-border); background: var(--input-bg); color: var(--text-color); font-size: 16px; text-align: center; }
         
-        #searchList { max-height: 220px; overflow-y: auto; background: #f8f9fa; border-radius: 8px; margin-bottom: 10px; display: none; border: 1px solid #ddd; }
-        .search-item { padding: 12px; border-bottom: 1px solid #eee; display: flex; flex-direction: column; align-items: center; text-align: center; cursor: pointer; }
+        select { background: var(--input-bg); color: var(--text-color); border: 1px solid var(--input-border); }
+
+        #searchList { max-height: 220px; overflow-y: auto; background: var(--card-bg); border-radius: 8px; margin-bottom: 10px; display: none; border: 1px solid var(--border-color); }
+        .search-item { padding: 12px; border-bottom: 1px solid var(--border-color); display: flex; flex-direction: column; align-items: center; text-align: center; cursor: pointer; }
 
         table { width: 100%; border-collapse: collapse; font-size: 11px; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th, td { border: 1px solid var(--border-color); padding: 8px; text-align: left; }
+        th { background-color: var(--table-header-bg); }
 
-        #toast-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); display: none; align-items: center; justify-content: center; z-index: 10000; }
-        .toast-box { background: white; padding: 20px; border-radius: 15px; width: 80%; max-width: 300px; text-align: center; }
+        #toast-overlay, #confirm-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.65); display: none; align-items: center; justify-content: center; z-index: 10000; backdrop-filter: blur(3px); }
+        .toast-box { background: var(--card-bg); color: var(--text-color); padding: 22px; border-radius: 16px; width: 85%; max-width: 320px; text-align: center; box-shadow: 0 8px 25px rgba(0,0,0,0.3); }
 
         #installBanner {
             display: none; background: #007bff; color: white; padding: 10px; 
             border-radius: 8px; margin-bottom: 15px; text-align: center;
         }
+
+        .delete-btn { background: #dc3545; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px; cursor: pointer; margin: 0; width: auto; display: inline-block; }
     </style>
 </head>
 <body>
 
     <div id="installBanner">
-        <span>Install S.M.A.R.T. App on your device!</span>
+        <span>Install S.M.A.R.T. App on Chrome!</span>
         <button id="installBtn" class="btn-success" style="width: auto; padding: 6px 15px; margin-left: 10px; display: inline-block;">Install</button>
     </div>
 
     <div class="header">
         <h1>S.M.A.R.T.</h1>
         <p>Student Monitoring & Accountability Record Tracker</p>
+        <button class="theme-toggle-btn" id="themeBtn" onclick="toggleDarkMode()" title="Toggle Dark Mode">🌙</button>
     </div>
 
     <div id="status">Loading...</div>
 
+    <!-- Centered Modal Dialog for Alerts/Notifies -->
     <div id="toast-overlay">
         <div class="toast-box">
-            <p id="toast-msg"></p>
-            <button class="btn-primary" style="width:auto; padding: 10px 40px;" onclick="hideNotify()">OK</button>
+            <p id="toast-msg" style="margin-top:0; font-size:15px; line-height:1.4;"></p>
+            <button class="btn-primary" style="width:auto; min-width:100px; padding: 10px 25px; margin-top:10px;" onclick="hideNotify()">OK</button>
+        </div>
+    </div>
+
+    <!-- Centered Confirmation Modal Dialog -->
+    <div id="confirm-overlay">
+        <div class="toast-box">
+            <p id="confirm-msg" style="margin-top:0; font-size:15px; line-height:1.4;"></p>
+            <div style="display:flex; gap:10px; margin-top:15px;">
+                <button id="confirmYesBtn" class="btn-success" style="flex:1;">Yes</button>
+                <button id="confirmNoBtn" class="btn-secondary" style="flex:1;">No</button>
+            </div>
         </div>
     </div>
 
@@ -111,12 +206,12 @@
         <div id="reader"></div>
 
         <div id="scanResult" style="display:none; text-align: left;" class="result-box">
-            <p style="margin:0; color:#666; font-size:11px;">STUDENT IDENTIFIED:</p>
+            <p style="margin:0; color:var(--subtext-color); font-size:11px;">STUDENT IDENTIFIED:</p>
             <p style="font-size: 18px; font-weight: bold; margin: 5px 0;"><span id="nameText"></span></p>
-            <p style="margin: 0 0 15px 0; font-size:14px; color: #444;"><span id="infoText"></span></p>
+            <p style="margin: 0 0 15px 0; font-size:14px; color: var(--subtext-color);"><span id="infoText"></span></p>
             
             <label style="font-size: 12px; font-weight: bold;">Violation:</label>
-            <select id="violationType" style="width:100%; padding:12px; margin:10px 0; border-radius:8px; font-size: 16px;">
+            <select id="violationType" onchange="toggleOtherInput()" style="width:100%; padding:12px; margin:10px 0 5px 0; border-radius:8px; font-size: 16px;">
                 <option value="Improper Haircut">Improper Haircut</option>
                 <option value="Improper Uniform">Improper Uniform</option>
                 <option value="No ID">No ID Card</option>
@@ -124,6 +219,9 @@
                 <option value="Make Up">Excessive Make Up</option>
                 <option value="Others">Others</option>
             </select>
+            
+            <input type="text" id="otherViolationInput" placeholder="Specify violation description..." style="display:none; width:100%; box-sizing:border-box; padding:12px; margin:5px 0 10px 0; border-radius:8px; border:1px solid var(--input-border); background:var(--input-bg); color:var(--text-color); font-size:14px;">
+
             <button class="btn-success" onclick="saveRecord()">Confirm & Save</button>
             <button class="btn-secondary" onclick="cancelScan()">Cancel</button>
         </div>
@@ -133,7 +231,7 @@
         <h3>Recent History</h3>
         <div style="overflow-x: auto;">
             <table>
-                <thead><tr><th>Name</th><th>Violation</th><th>Time</th><th>Sync</th></tr></thead>
+                <thead><tr><th>Name</th><th>Violation</th><th>Time</th><th>Status</th><th>Action</th></tr></thead>
                 <tbody id="historyBody"></tbody>
             </table>
         </div>
@@ -141,46 +239,111 @@
 
     <div class="card" style="text-align: center;">
         <h3>System Tools</h3>
-        <button id="syncBtn" class="btn-sync" onclick="syncToSheets()">☁️ Sync to Google Sheets</button>
+        <button id="syncBtn" class="btn-sync" onclick="syncToSheets()">☁️ Sync Logs to Google Sheets</button>
         <button class="btn-success" onclick="exportData()">Extract Excel Report</button>
-        <hr>
-        <input type="file" id="csvFile" accept=".csv" style="font-size: 11px; margin-bottom:10px;">
-        <button class="btn-secondary" onclick="uploadCSV()">Update Roster</button>
         <button class="btn-danger" style="margin-top:20px; opacity:0.5" onclick="clearLogs()">Clear All Records</button>
+        
+        <hr style="margin: 20px 0; border: none; border-top: 1px solid var(--border-color);">
+        <button id="syncRosterBtn" class="btn-secondary" style="font-size: 12px; opacity: 0.8; margin-top: 5px;" onclick="syncRoster()">📥 Sync Roster from Sheet</button>
     </div>
 
     <script>
-        // --- OFFLINE-READY PWA REGISTRATION ---
+        // --- DARK MODE LOGIC ---
+        function initTheme() {
+            const savedTheme = localStorage.getItem('smart_theme');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            
+            if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+                document.body.classList.add('dark-mode');
+                document.getElementById('themeBtn').innerText = '☀️';
+                document.getElementById('metaThemeColor').setAttribute('content', '#121212');
+            } else {
+                document.body.classList.remove('dark-mode');
+                document.getElementById('themeBtn').innerText = '🌙';
+                document.getElementById('metaThemeColor').setAttribute('content', '#0056b3');
+            }
+        }
+
+        function toggleDarkMode() {
+            const isDark = document.body.classList.toggle('dark-mode');
+            localStorage.setItem('smart_theme', isDark ? 'dark' : 'light');
+            document.getElementById('themeBtn').innerText = isDark ? '☀️' : '🌙';
+            document.getElementById('metaThemeColor').setAttribute('content', isDark ? '#121212' : '#0056b3');
+        }
+
+        // --- FULL OFFLINE SERVICE WORKER (CACHE FIRST) ---
         (function setupPWA() {
             const manifestData = {
                 name: "S.M.A.R.T. Student Tracker",
                 short_name: "SMART Tracker",
                 start_url: "./",
                 display: "standalone",
-                background_color: "#f0f2f5",
+                background_color: "#121212",
                 theme_color: "#0056b3",
-                icons: [{
-                    src: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230056b3'/><text x='50%' y='60%' font-size='50' font-weight='bold' fill='white' text-anchor='middle'>S</text></svg>",
-                    sizes: "192x192 512x512",
-                    type: "image/svg+xml"
-                }]
+                icons: [
+                    {
+                        src: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230056b3'/><text x='50%' y='60%' font-size='50' font-weight='bold' fill='white' text-anchor='middle'>S</text></svg>",
+                        sizes: "192x192 512x512",
+                        type: "image/svg+xml"
+                    }
+                ]
             };
             const manifestBlob = new Blob([JSON.stringify(manifestData)], { type: 'application/json' });
+            const manifestURL = URL.createObjectURL(manifestBlob);
             const link = document.createElement('link');
             link.rel = 'manifest';
-            link.href = URL.createObjectURL(manifestBlob);
+            link.href = manifestURL;
             document.head.appendChild(link);
 
             if ('serviceWorker' in navigator) {
                 const swCode = `
-                    self.addEventListener('install', (e) => self.skipWaiting());
-                    self.addEventListener('activate', (e) => e.waitUntil(clients.claim()));
+                    const CACHE_NAME = 'smart-app-v2';
+                    const ASSETS = [
+                        './',
+                        'https://unpkg.com/dexie@latest/dist/dexie.js',
+                        'https://unpkg.com/html5-qrcode',
+                        'https://unpkg.com/xlsx/dist/xlsx.full.min.js'
+                    ];
+
+                    self.addEventListener('install', (e) => {
+                        e.waitUntil(
+                            caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
+                                .then(() => self.skipWaiting())
+                        );
+                    });
+
+                    self.addEventListener('activate', (e) => {
+                        e.waitUntil(
+                            caches.keys().then((keys) => {
+                                return Promise.all(
+                                    keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
+                                );
+                            }).then(() => self.clients.claim())
+                        );
+                    });
+
                     self.addEventListener('fetch', (e) => {
-                        e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
+                        // Skip Google Sheets API / Apps Script network requests from cache
+                        if (e.request.url.includes('script.google.com') || e.request.url.includes('docs.google.com')) {
+                            return;
+                        }
+                        e.respondWith(
+                            caches.match(e.request).then((cachedResponse) => {
+                                if (cachedResponse) return cachedResponse;
+                                return fetch(e.request).then((networkResponse) => {
+                                    if (networkResponse && networkResponse.status === 200 && e.request.method === 'GET') {
+                                        const clone = networkResponse.clone();
+                                        caches.open(CACHE_NAME).then((cache) => cache.put(e.request, clone));
+                                    }
+                                    return networkResponse;
+                                });
+                            })
+                        );
                     });
                 `;
-                const swDataUrl = 'data:application/javascript;charset=utf-8,' + encodeURIComponent(swCode);
-                navigator.serviceWorker.register(swDataUrl).catch(() => {});
+                const swBlob = new Blob([swCode], { type: 'application/javascript' });
+                const swUrl = URL.createObjectURL(swBlob);
+                navigator.serviceWorker.register(swUrl).catch(err => console.log('SW reg error', err));
             }
 
             let deferredPrompt;
@@ -202,7 +365,8 @@
         })();
 
         // --- MAIN APP LOGIC ---
-        const SYNC_URL = "https://script.google.com/macros/s/AKfycbyvBDzkliD44BPjLtgCLlX3jKrI1VlOymfU7l80asrvIWU-Z7pUP5P5ztdGOL2-OUfA6w/exec";
+        const SYNC_URL = "https://script.google.com/macros/s/AKfycbz-cTm51idYTG-0hAUYTPkl3IcfcCiWrrdMUj0K79Ci6ovc5CfgXmf-AZ41-CixsVDI_g/exec";
+        const ROSTER_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRiNJ2cC86hHefg8sqPRogUQlVw5Zu9oXvkLvZLvj9i8VaMMoID9wfe1svMT7CWDVWtMWAzUkxAHsKH/pub?output=csv";
         
         const db = new Dexie("StudentTrackerDB");
         db.version(2).stores({
@@ -214,12 +378,32 @@
         let activeStudent = null;
         let audioCtx = null;
         let isScannerActive = false;
+        let autoSyncPrompted = false;
 
         function showNotify(msg) {
             document.getElementById('toast-msg').innerText = msg;
             document.getElementById('toast-overlay').style.display = "flex";
         }
         function hideNotify() { document.getElementById('toast-overlay').style.display = "none"; }
+        
+        function showConfirm(msg, onYes, onNo) {
+            document.getElementById('confirm-msg').innerText = msg;
+            const overlay = document.getElementById('confirm-overlay');
+            const yesBtn = document.getElementById('confirmYesBtn');
+            const noBtn = document.getElementById('confirmNoBtn');
+
+            const cleanUp = () => {
+                overlay.style.display = "none";
+                yesBtn.onclick = null;
+                noBtn.onclick = null;
+            };
+
+            yesBtn.onclick = () => { cleanUp(); if (onYes) onYes(); };
+            noBtn.onclick = () => { cleanUp(); if (onNo) onNo(); };
+
+            overlay.style.display = "flex";
+        }
+
         function quickShow(msg) {
             const el = document.getElementById('quick-toast');
             el.innerText = msg;
@@ -228,31 +412,65 @@
         }
 
         async function playSound(mode) {
-            try {
-                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                if (audioCtx.state === 'suspended') await audioCtx.resume();
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-                osc.connect(gain); gain.connect(audioCtx.destination);
-                if (mode === 'scan') {
-                    osc.frequency.setValueAtTime(1200, audioCtx.currentTime);
-                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
-                    osc.start(); osc.stop(audioCtx.currentTime + 0.2);
-                } else if (mode === 'save') {
-                    osc.frequency.setValueAtTime(800, audioCtx.currentTime);
-                    osc.frequency.exponentialRampToValueAtTime(1000, audioCtx.currentTime + 0.1);
-                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
-                    osc.start(); osc.stop(audioCtx.currentTime + 0.3);
-                } else if (mode === 'error') {
-                    osc.type = "sawtooth";
-                    osc.frequency.setValueAtTime(150, audioCtx.currentTime);
-                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
-                    osc.start(); osc.stop(audioCtx.currentTime + 0.4);
-                }
-            } catch(e) {}
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') await audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            if (mode === 'scan') {
+                osc.frequency.setValueAtTime(1200, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.2);
+            } else if (mode === 'save') {
+                osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(1000, audioCtx.currentTime + 0.1);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+            } else if (mode === 'error') {
+                osc.type = "sawtooth";
+                osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.4);
+            }
         }
 
-        document.addEventListener("DOMContentLoaded", refreshUI);
+        document.addEventListener("DOMContentLoaded", () => {
+            initTheme();
+            refreshUI();
+            checkOnlineAndPromptSync();
+        });
+
+        window.addEventListener('online', () => {
+            autoSyncPrompted = false; // Reset so prompt fires when reconnecting
+            checkOnlineAndPromptSync();
+        });
+
+        async function checkOnlineAndPromptSync() {
+            if (navigator.onLine && !autoSyncPrompted) {
+                const unsyncedCount = await db.logs.where('synced').equals(0).count();
+                if (unsyncedCount > 0) {
+                    autoSyncPrompted = true;
+                    showConfirm(
+                        `Online connection detected!\nYou have ${unsyncedCount} pending unsynced record(s).\nWould you like to sync now?`,
+                        () => {
+                            // User clicked Yes
+                            syncToSheets();
+                        },
+                        () => {
+                            // User clicked No -> Ask confirmation warning
+                            showConfirm(
+                                "Are you sure? Unsynced records will NOT be reflected in Google Sheets.",
+                                null, // User clicks Yes to confirm skipping
+                                () => {
+                                    // User reconsidered -> Trigger sync
+                                    syncToSheets();
+                                }
+                            );
+                        }
+                    );
+                }
+            }
+        }
 
         async function refreshUI() {
             const studentCount = await db.students.count();
@@ -263,7 +481,7 @@
                 ? `ROSTER: ${studentCount} | LOGS: ${logCount} (${unsyncedCount} Pending)` 
                 : `⚠️ NO ROSTER DATA`;
             
-            const lastLogs = await db.logs.reverse().limit(5).toArray();
+            const lastLogs = await db.logs.reverse().limit(10).toArray();
             if(lastLogs.length > 0) {
                 const bar = document.getElementById('last-scanned-bar');
                 bar.innerText = `LAST LOGGED: ${lastLogs[0].Name}`;
@@ -274,9 +492,24 @@
                     <td>${log.Name}</td>
                     <td>${log.violation}</td>
                     <td>${new Date(log.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</td>
-                    <td>${log.synced ? '✅' : '⏳'}</td>
+                    <td>${log.synced ? '✅ Synced' : '⏳ Pending'}</td>
+                    <td>
+                        ${!log.synced 
+                            ? `<button class="delete-btn" onclick="deleteUnsyncedLog(${log.id})" title="Delete record">🗑️ Delete</button>` 
+                            : `<span style="color:var(--subtext-color); font-size:10px;">—</span>`
+                        }
+                    </td>
                 </tr>
             `).join('');
+        }
+
+        async function deleteUnsyncedLog(id) {
+            showConfirm("Are you sure you want to remove this unsynced record?", async () => {
+                await db.logs.delete(id);
+                playSound('save');
+                quickShow("Record removed 🗑️");
+                await refreshUI();
+            });
         }
 
         async function performSearch() {
@@ -306,76 +539,84 @@
                 document.getElementById('infoText').innerText = `Grade ${student.Grade} — ${student.Section}`;
                 document.getElementById('scanResult').style.display = 'block';
                 if(scanner && scanner.getState() === Html5QrcodeScannerState.SCANNING) {
-                    try { scanner.pause(true); } catch(e){}
+                    scanner.pause(true);
                 }
             }
         }
 
-        // --- ROBUST CAMERA INIT & OFFLINE HANDLING ---
-        async function initScanner() {
+        function initScanner() {
             isScannerActive = true;
             document.getElementById('startBtn').style.display = 'none';
-
-            // Fully clear existing scanner instance if stalled
-            if (scanner) {
-                try {
-                    await stopScanner();
-                    await scanner.clear();
-                } catch (e) {}
-                scanner = null;
+            if (!scanner) {
+                scanner = new Html5Qrcode("reader");
             }
-
-            scanner = new Html5Qrcode("reader");
+            
             const config = { fps: 15, qrbox: null };
             
-            try {
-                await scanner.start(
-                    { facingMode: "environment" }, 
-                    config, 
-                    (text) => selectStudent(text.trim())
-                );
-            } catch (err) {
-                showNotify("Camera Error: Please check camera permissions."); 
-                document.getElementById('startBtn').style.display = 'block'; 
-                isScannerActive = false;
-            }
+            scanner.start({ facingMode: "environment" }, config, (text) => selectStudent(text.trim()))
+                   .catch(() => { 
+                       showNotify("Camera Error or Permission Denied"); 
+                       document.getElementById('startBtn').style.display = 'block'; 
+                       isScannerActive = false;
+                   });
         }
 
         async function stopScanner() {
-            if (scanner) {
-                const state = scanner.getState();
-                if (state === Html5QrcodeScannerState.SCANNING || state === Html5QrcodeScannerState.PAUSED) {
-                    try {
-                        await scanner.stop();
-                    } catch (e) {}
-                }
+            if (scanner && scanner.getState() === Html5QrcodeScannerState.SCANNING) {
+                try {
+                    await scanner.stop();
+                } catch (e) { console.log(e); }
             }
         }
 
-        // Handles tab backgrounding & reopening without requiring network reloads
         document.addEventListener('visibilitychange', async () => {
+            if (!isScannerActive) return;
+
             if (document.hidden) {
-                if (isScannerActive) {
-                    await stopScanner();
-                }
+                await stopScanner();
             } else {
-                if (isScannerActive && document.getElementById('scanResult').style.display !== 'block') {
-                    // Small delay ensures MediaDevices hardware releases properly offline
-                    setTimeout(initScanner, 300);
+                if (document.getElementById('scanResult').style.display !== 'block') {
+                    initScanner();
                 }
             }
         });
 
         function cancelScan() {
             document.getElementById('scanResult').style.display = 'none';
+            document.getElementById('otherViolationInput').style.display = 'none';
+            document.getElementById('otherViolationInput').value = '';
+            document.getElementById('violationType').value = 'Improper Haircut';
             if(scanner && scanner.getState() === Html5QrcodeScannerState.PAUSED) {
-                try { scanner.resume(); } catch(e) { initScanner(); }
+                scanner.resume();
+            }
+        }
+
+        function toggleOtherInput() {
+            const selectVal = document.getElementById('violationType').value;
+            const otherInput = document.getElementById('otherViolationInput');
+            if (selectVal === 'Others') {
+                otherInput.style.display = 'block';
+                otherInput.focus();
+            } else {
+                otherInput.style.display = 'none';
+                otherInput.value = '';
             }
         }
 
         async function saveRecord() {
             if(!activeStudent) return;
-            const violation = document.getElementById('violationType').value;
+            let violation = document.getElementById('violationType').value;
+            if (violation === 'Others') {
+                const customDesc = document.getElementById('otherViolationInput').value.trim();
+                if (!customDesc) {
+                    playSound('error');
+                    quickShow("Please enter violation description");
+                    document.getElementById('otherViolationInput').focus();
+                    return;
+                }
+                violation = `Others: ${customDesc}`;
+            }
+
             const now = Date.now();
             
             const dup = await db.logs.where('LRN').equals(activeStudent.LRN).and(l => l.violation === violation && (now - l.timestamp) < 30000).first();
@@ -384,15 +625,127 @@
             await db.logs.add({ ...activeStudent, violation: violation, timestamp: now, synced: 0 });
             playSound('save');
             quickShow("Saved ✅");
+            
+            // Reset modal & input fields
             document.getElementById('scanResult').style.display = 'none';
+            document.getElementById('otherViolationInput').style.display = 'none';
+            document.getElementById('otherViolationInput').value = '';
+            document.getElementById('violationType').value = 'Improper Haircut';
+
             await refreshUI();
             if(scanner && scanner.getState() === Html5QrcodeScannerState.PAUSED) {
-                try { scanner.resume(); } catch(e) { initScanner(); }
+                scanner.resume();
+            }
+        }
+
+        async function syncRoster() {
+            if (!navigator.onLine) { showNotify("No Internet Connection. Please go online to sync the roster."); return; }
+            
+            const btn = document.getElementById('syncRosterBtn');
+            btn.disabled = true;
+            btn.innerText = "Syncing Roster... ⏳";
+
+            try {
+                if (scanner && scanner.getState() === Html5QrcodeScannerState.SCANNING) {
+                    await stopScanner();
+                    isScannerActive = false;
+                    document.getElementById('startBtn').style.display = 'block';
+                }
+
+                const response = await fetch(ROSTER_CSV_URL);
+                if (!response.ok) throw new Error("Failed to download CSV");
+
+                const csvText = await response.text();
+
+                function parseCSV(text) {
+                    const lines = [];
+                    let row = [];
+                    let current = '';
+                    let inQuotes = false;
+
+                    for (let i = 0; i < text.length; i++) {
+                        const char = text[i];
+                        const nextChar = text[i + 1];
+
+                        if (char === '"') {
+                            if (inQuotes && nextChar === '"') {
+                                current += '"';
+                                i++;
+                            } else {
+                                inQuotes = !inQuotes;
+                            }
+                        } else if (char === ',' && !inQuotes) {
+                            row.push(current.trim());
+                            current = '';
+                        } else if ((char === '\r' || char === '\n') && !inQuotes) {
+                            if (char === '\r' && nextChar === '\n') { i++; }
+                            row.push(current.trim());
+                            if (row.length > 0 && row.some(cell => cell.length > 0)) {
+                                lines.push(row);
+                            }
+                            row = [];
+                            current = '';
+                        } else {
+                            current += char;
+                        }
+                    }
+                    if (current || row.length > 0) {
+                        row.push(current.trim());
+                        if (row.some(cell => cell.length > 0)) lines.push(row);
+                    }
+                    return lines;
+                }
+
+                const rows = parseCSV(csvText);
+
+                if (rows.length < 2) {
+                    showNotify("No valid student data found in Google Sheet CSV.");
+                    return;
+                }
+
+                const headers = rows[0].map(h => h.toLowerCase());
+                const lrnIndex = headers.findIndex(h => h.includes('lrn'));
+                const nameIndex = headers.findIndex(h => h.includes('name'));
+                const gradeIndex = headers.findIndex(h => h.includes('grade') || h.includes('level'));
+                const sectionIndex = headers.findIndex(h => h.includes('section'));
+
+                if (lrnIndex === -1 || nameIndex === -1) {
+                    showNotify("CSV headers must contain LRN and NAME.");
+                    return;
+                }
+
+                const students = [];
+                for (let i = 1; i < rows.length; i++) {
+                    const cleanCols = rows[i];
+                    if (cleanCols[lrnIndex] && cleanCols[nameIndex]) {
+                        students.push({
+                            LRN: cleanCols[lrnIndex],
+                            Name: cleanCols[nameIndex],
+                            Grade: (gradeIndex !== -1 && cleanCols[gradeIndex]) ? cleanCols[gradeIndex] : 'N/A',
+                            Section: (sectionIndex !== -1 && cleanCols[sectionIndex]) ? cleanCols[sectionIndex] : 'N/A'
+                        });
+                    }
+                }
+
+                if (students.length > 0) {
+                    await db.students.clear();
+                    await db.students.bulkPut(students);
+                    showNotify(`Successfully updated roster! Loaded ${students.length} students.`);
+                    await refreshUI();
+                } else {
+                    showNotify("No valid student records extracted from Google Sheet CSV.");
+                }
+            } catch (err) {
+                console.error(err);
+                showNotify("Failed to fetch roster CSV. Please verify network connection and permissions.");
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "📥 Sync Roster from Sheet";
             }
         }
 
         async function syncToSheets() {
-            if (!navigator.onLine) { showNotify("No Internet Connection"); return; }
+            if (!navigator.onLine) { showNotify("No Internet Connection. Records will remain saved locally until online."); return; }
             
             const btn = document.getElementById('syncBtn');
             const unsynced = await db.logs.where('synced').equals(0).toArray();
@@ -402,43 +755,25 @@
             btn.innerText = "Syncing... ⏳";
 
             try {
-                await fetch(SYNC_URL, {
+                const response = await fetch(SYNC_URL, {
                     method: 'POST',
-                    mode: 'no-cors',
-                    cache: 'no-cache',
-                    headers: { 'Content-Type': 'application/json' },
+                    redirect: 'follow',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                     body: JSON.stringify(unsynced)
                 });
                 
                 await db.logs.where('synced').equals(0).modify({ synced: 1 });
-                showNotify(`Success! ${unsynced.length} records synced.`);
+                showNotify(`Success! ${unsynced.length} records synced to Google Sheets.`);
                 await refreshUI();
             } catch (err) {
-                showNotify("Sync Failed. Try again.");
+                console.error("Sync Error:", err);
+                showNotify("Sync Failed. Check internet connection or Google Apps Script Web App URL.");
             } finally {
                 setTimeout(() => {
                     btn.disabled = false;
-                    btn.innerText = "☁️ Sync to Google Sheets";
-                }, 2000);
+                    btn.innerText = "☁️ Sync Logs to Google Sheets";
+                }, 1000);
             }
-        }
-
-        async function uploadCSV() {
-            const file = document.getElementById('csvFile').files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = async (e) => {
-                const rows = e.target.result.split("\n").slice(1);
-                const data = rows.map(r => {
-                    const c = r.split(",");
-                    return c.length >= 4 ? { LRN: c[0].trim(), Name: c[1].trim(), Grade: c[2].trim(), Section: c[3].trim() } : null;
-                }).filter(Boolean);
-                await db.students.clear();
-                await db.students.bulkPut(data);
-                showNotify(`Imported ${data.length} students.`);
-                refreshUI();
-            };
-            reader.readAsText(file);
         }
 
         async function exportData() {
@@ -447,10 +782,17 @@
                 LRN: l.LRN, Name: l.Name, Violation: l.violation, Date: new Date(l.timestamp).toLocaleString()
             })));
             const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Logs");
             XLSX.writeFile(wb, "SMART_Report.xlsx");
         }
 
-        async function clearLogs() { if (confirm("Clear all?")) { await db.logs.clear(); refreshUI(); } }
+        async function clearLogs() { 
+            showConfirm("Are you sure you want to clear ALL local records?", async () => { 
+                await db.logs.clear(); 
+                refreshUI(); 
+                quickShow("Logs cleared 🧹");
+            }); 
+        }
     </script>
 </body>
 </html>
